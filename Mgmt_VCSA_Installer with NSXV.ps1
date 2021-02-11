@@ -1,11 +1,12 @@
 ﻿#
 # Author: Dominic Chan (dominic.chan@tataoui.com)
 # Date: 2020-11-11
-# Last Update: 2021-01-25
+# Last Update: 2021-02-10
 #
 # Description:
-# VCSA unattended installation with post installation tasks.
+# VCSA unattended installation with post installation tasks and NSX-V integration.
 # - tested on VCSA 6.7
+# - tested on NSX-V 6.4.9
 # 
 # Powershell environment prerequisites:
 # 1. PowerShell version: 5.1.14393.3866
@@ -15,17 +16,17 @@
 #    Install-Module -Name PowerNSX -Confirm:$false -AllowClobber -Force
 #    or 
 #    $Branch="master";$url="https://raw.githubusercontent.com/vmware/powernsx/$Branch/PowerNSXInstaller.ps1"; try { $wc = new-object Net.WebClient;$scr = try { $wc.DownloadString($url)} catch { if ( $_.exception.innerexception -match "(407)") { $wc.proxy.credentials = Get-Credential -Message "Proxy Authentication Required"; $wc.DownloadString($url) } else { throw $_ }}; $scr | iex } catch { throw $_ }
-# 4. ImportExcel7.1.0
+# 4. Excel locally installed on desktop / laptop
+# 5. ImportExcel7.1.0 (removed)
 #    Install-Module -Name ImportExcel -RequiredVersion 7.1.0
 #
 
 Set-PowerCLIConfiguration -defaultviservermode Single -Scope Session -ParticipateInCEIP $false -Confirm:$false
-#Set-PowerCLIConfiguration -Scope User -ParticipateInCEIP $false -Confirm:$false | out-null
+# Set-PowerCLIConfiguration -Scope User -ParticipateInCEIP $false -Confirm:$false | out-null
 Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -WebOperationTimeoutSeconds 600 -Confirm:$false | out-null
 #
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 $DataSourcePath = "G:\Transfer\VCSA-NSX-Configure.xlsx" # Absolute path to Excel Worksheet as the data sources
-$NSXSettingsPath = "G:\Transfer\NSX-Configure.xlsx" # to be deleted
 #$DataSourcePath = "$ScriptPath\VMware.xlsx" # Relative path to Excel Workbook as data sources
 $hostfile = "$env:windir\System32\drivers\etc\hosts"
 
@@ -45,29 +46,33 @@ if (!(Test-Path $DataSourcePath))
     $DataSourcePath = $FileBrowser.FileName
 }
 
-# Get-VM | Export-Excel -Path $Path -AutoSize -AutoFilter -FreezeTopRow -BoldTopRow -ClearSheet -WorksheetName 'Deploy VM'
-#$MgmtVCSAParameters = Import-Excel -Path $DataSourcePath -WorksheetName 'Mgmt-VCSA'
-
 $DataSource = Read-Host -Prompt 'Using static preset inputs or import from Excel? (S/E)'
 
 if ($DataSource -eq 'S') {
-    $VIServer = 'esx02'
-    $VIServerIP ='192.168.10.21'
-    $VIUsername = 'root'
-    $VIPassword = 'VMware1!'
-    $DeploymentTarget = 'ESXI'
     $VCSAInstallerPath = 'D:\VMware\VMware-VCSA-all-6.7.0-15132721'
     $NSX_Mgr_OVA =  'D:\VMware\ova\VMware-NSX-Manager-6.4.9-17267008.ova'
     #$NSXTManagerOVA = 'D:\VMware\ova\VMware NSX-T Data Center 2.5.2.2\nsx-unified-appliance-2.5.2.2.0.17003656.ova'
     #$NSXTControllerOVA = 
     #$NSXTEdgeOVA = 'D:\VMware\ova\VMware NSX-T Data Center 2.5.2.2\nsx-edge-2.5.2.2.0.17003662.ova'
+
+    $strO365Username = 'user@office365.com' # Office 365 username
+    $strO365Password = 'Pa55w0rd' # Office 365 Password
+    $strSMTPServer = 'smtp.office365.com' # SMTP Server
+    $intSMTPPort = 587 # SMTP Server Port
+    $strSendTo = 'admin@test.com' # Email Recipient
+
+    $VIServer = 'esx02'
+    $VIServerIP ='192.168.10.21'
+    $VIUsername = 'root'
+    $VIPassword = 'VMware1!'
+    $DeploymentTarget = 'ESXI'
     
-    # Nested ESXi VMs to deploy
+    # Nested ESXi VMs or Manage ESX hosts to deploy
     $NestedESXiHostnameToIPs = @{
+        "ESX01" = "192.168.10.20"
         "ESX02" = "192.168.10.21"
-#        "ESX01" = "192.168.10.20"
-#        "ESX03" = "192.168.10.22"
-#        "ESX04" = "192.168.10.23"
+        "ESX03" = "192.168.10.22"
+        "ESX04" = "192.168.10.23"
     }
 
     $VDSPortgroupAndVLAN = @{
@@ -85,7 +90,7 @@ if ($DataSource -eq 'S') {
     $VCSAIPAddress = '192.168.10.32'
     $VCSAPrefix = '24'
     $VCSASSODomainName = 'vsphere.local'
-    $VCSASSOSiteName = "Tataoui"
+    $VCSASSOSiteName = "Site HQ"
     $VCSASSOPassword = 'VMware1!'
     $VCSARootPassword = 'VMware1!'
     $VCSASSHEnable = 'true'
@@ -99,8 +104,7 @@ if ($DataSource -eq 'S') {
     $VMNTP = 'pool.ntp.org'
     $VMPassword = "VMware1!" # Password to Add ESXi Host to vCenter Cluster
     $VMDomain = 'tataoui.com'
-    # Not Used
-    # VMSyslog = '192.168.1.200'
+    # VMSyslog = '192.168.1.200' # Not Used
     $VMDatastore = 'SSD_VM'
 
     # Name of new vSphere Datacenter/Cluster when VCSA is deployed
@@ -114,58 +118,49 @@ if ($DataSource -eq 'S') {
     $VLANVMPortgroup = 'VM Network'
     $VLANTrunkPortgroup = 'Trunk Network'
 
-    # NSX Manager Configuration
-    $DeployNSX = 0
-    $NSX_Mgr_vCPU = "2" # Reconfigure NSX vCPU
-    $NSX_Mgr_vMem = "8" # Reconfigure NSX vMEM (GB)
-    $NSX_Mgr_Name = "nsx64-1"
-    $NSX_Mgr_Hostname = "nsx64-1.tataoui.com"
-    $NSX_Mgr_IPAddress = "172.30.0.250"
-    $NSX_Mgr_Netmask = "255.255.255.0"
-    $NSX_Mgr_Gateway = "172.30.0.1"
-    $NSX_Mgr_SSHEnable = "true"
-    $NSX_Mgr_CEIPEnable = "false"
-    $NSX_Mgr_UIPassword = "VMw@re123!"
-    $NSX_Mgr_CLIPassword = "VMw@re123!"
-
-    # VDS / VXLAN Configurations
+    # VDS / VXLAN Configurations (Not used)
     $PrivateVXLANVMNetwork = "dv-private-network" # Existing Portgroup
-    $VDSName = "VDS-6.7"
     $VXLANDVPortgroup = "VXLAN"
     $VXLANSubnet = "172.16.66."
     $VXLANNetmask = "255.255.255.0"
 
-    # Advanced Configurations
-    # Set to 1 only if you have DNS (forward/reverse) for ESXi hostnames
-    $addHostByDnsName = 1
-    
     # Enable deployment options
-    $preCheck = 1 # Validate VCSA installer location
-    $confirmDeployment = 1 # Show and validate deployment settings
-    $deployVCSA = 1 # Enable VCSA installation
-    $setupNewVC = 1 # Enable VCSA post installation
-    $addESXiHostsToVC = 1 # Enable adding ESXi hosts to vCenter during deployment
-    $configurevMotion = 1 # Enable vMotion during deployment
-
-    $setupVXLAN = 0 # Setup VXLAN
-    $configureNSX = 0 # Configure NSX
+    $preCheck = 'true' # Validate VCSA installer location
+    $confirmDeployment = 'true' # Show and validate deployment settings
+    $deployVCSA = 'true' # Enable VCSA installation
+    $setupNewVC = 'true' # Enable VCSA post installation
+    $addHostByDnsName  = 'true' # Set to 1 only if you have DNS (forward/reverse) for ESXi hostnames
+    $addESXiHostsToVC = 'true' # Enable adding ESXi hosts to vCenter during deployment
+    $configurevMotion = 'true' # Enable vMotion during deployment
+    $setupVXLAN = 'true' # Setup VXLAN
+    $DeployNSX = 'true'
+    $configureNSX = 'true' # Configure NSX
     # Enable verbose output to a new PowerShell Console. Thanks to suggestion by Christian Mohn
-    $enableVerboseLoggingToNewShell = 0
+    $enableVerboseLoggingToNewShell = 'false'
 
     $configureConLib = 1 # Enable creation of Content Library
     $ConLibName = 'Repo' # Content Library repository name
     $ConLibDSName = 'SSD_VM' # Datastore for Content Library
     $ISOPath = 'F:\ISO' # Path to ISO files to upload (note it will upload ALL isos found in this folder)
 
-    $strO365Username = 'dominic.chan@tataoui.com' # Office 365 username
-    $strO365Password = 'Mayflower#0322' # Office 365 Password ##########################
-    $strSMTPServer = 'smtp.office365.com' # SMTP Server
-    $intSMTPPort = 587 # SMTP Server Port
-    $strSendTo = 'dwchan69@gmail.com' # Email Recipient
+     # NSX Manager Configuration
+    $NSX_Mgr_Name = "nsx64-1"
+    $NSX_Mgr_Hostname = "nsx64-1.tataoui.com"
+    $NSX_Mgr_IPAddress = "172.30.0.250"
+    $NSX_Mgr_Netmask = "255.255.255.0"
+    $NSX_Mgr_Gateway = "172.30.0.1"
+    $NSX_MGR_DNSServer = $VMDNS
+    $NSX_MGR_DNSDomain = $VMDomain
+    $NSX_MGR_NTPServer = $VMNTP
+    $NSX_Mgr_UIPassword = "VMw@re123!"
+    $NSX_Mgr_CLIPassword = "VMw@re123!"
+    $NSX_Mgr_SSHEnable = "true"
+    $NSX_Mgr_CEIPEnable = "false"
+    $NSX_Mgr_vCPU = "2" # Reconfigure NSX vCPU
+    $NSX_Mgr_vMem = "8" # Reconfigure NSX vMEM (GB)
 
 } else {
-
-    # Import NSX_Info from Master Spreadsheet
+    # Import VCSA and NSX Info from Excel
     $Excel = New-Object -COM "Excel.Application"
     $Excel.Visible = $False
     $WorkBook = $Excel.Workbooks.Open($DataSourcePath)
@@ -196,26 +191,21 @@ if ($DataSource -eq 'S') {
     $VIPassword        = $WorkSheet.Cells.Item(3, 4).Value()
     $DeploymentTarget  = $WorkSheet.Cells.Item(3, 5).Value()
 
-    # Nested ESXi VMs to deploy
-    $NestedESXiHostnameToIPs = @{
-    "ESX02" = "192.168.10.21"
+    $MgmtESXHosts = $WorkSheet.Cells.Item(10, 1).Value()
+    # Read in MgmtESXHosts as hash
+    $NestedESXiHostnameToIPs = @{}
+    $MgmtESXHosts.split(',') | % {
+        $key,$value = $_.split('=')
+        $NestedESXiHostnameToIPs[$key] = $value
     }
-    
     # Read in MgmtESXHosts as an array
     # $NestedESXiHostnameToIPs = $MgmtVCSAParameters.MgmtESXHosts.split(',') | foreach {$K,$V=$_.split('='); @{$K.trim()=$V}}
-    
-    # Read in MgmtESXHosts as hash
-    # $NestedESXiHostnameToIPs = @{}
-    # $MgmtVCSAParameters.MgmtESXHosts.split(',') | % {
-    # $key,$value = $_.split('=')
-    # $NestedESXiHostnameToIPs[$key] = $value
-    # }
 
     # Not used yet
     $VDSPortgroupAndVLAN = @{
-    "Management Network" = $WorkSheet.Cells.Item(10, 2).Value()
-    "Trunk Network" = $WorkSheet.Cells.Item(10, 3).Value()
-    "VM Network" = $WorkSheet.Cells.Item(10, 4).Value()
+        "Management Network" = $WorkSheet.Cells.Item(10, 2).Value()
+        "Trunk Network" = $WorkSheet.Cells.Item(10, 3).Value()
+        "VM Network" = $WorkSheet.Cells.Item(10, 4).Value()
     }
 
     # VCSA Deployment Configuration
@@ -331,6 +321,9 @@ if ($DataSource -eq 'S') {
 
     $NSX_VXLAN_TZ_Name = $WorkSheet.Cells.Item(25, 1).Value()
     $NSX_VXLAN_TZ_Mode = $WorkSheet.Cells.Item(25, 2).Value()
+
+    $NumDLR = $WorkSheet.Cells.Item(29, 1).Value()
+    $NumESG = $WorkSheet.Cells.Item(29, 2).Value()
     $release = Release-Ref($WorkSheet)
 
     $WorkSheetname = "IP Pools"
@@ -359,7 +352,7 @@ if ($DataSource -eq 'S') {
 #$VIServerShort = $VIServer.Substring(0,$VIServer.IndexOf("."))
 $verboseLogFile = "vsphere67-Physical-Manage-VCSA-Deployment.log"
 $vSphereVersion = "6.7"
-# Not used - $deploymentType
+# Not used - $deploymentType - Placeholder
 $deploymentType = "Standard"
 $random_string = -join ((65..90) + (97..122) | Get-Random -Count 8 | % {[char]$_})
 $depotServer = "https://hostupdate.vmware.com/software/VUM/PRODUCTION/main/vmw-depot-index.xml"
@@ -617,12 +610,6 @@ if (!(Get-Module -Name VMware.VimAutomation.Core -ErrorAction SilentlyContinue))
 # Load PowerNSX
 Import-Module -Name '.\PowerNSX.psm1' -ErrorAction SilentlyContinue -DisableNameChecking
 
-# Check if the excel exists
-if(!(Test-Path $NSXSettingsPath)) {
-  Write-Host "Settings Excel file '$NSXSettingsPath' not found!" -ForegroundColor "red"
-  Exit
-}
-
 # Import RestAPI functions for NSX
 . $ScriptPath'Install-NSX-Functions.ps1'
 
@@ -757,7 +744,7 @@ if($confirmDeployment -eq 'true') {
     }
 
     if($DeployNSX -eq 'true') {
-        Write-Host -ForegroundColor Yellow "`n----------------------- NSX Configuration -----------------------"
+        Write-Host -ForegroundColor Yellow "`n------------------- NSX Manager Configuration -------------------"
         Write-Host -NoNewline -ForegroundColor Green "NSX number of vCPU: "
         Write-Host -ForegroundColor White $NSX_Mgr_vCPU
         Write-Host -NoNewline -ForegroundColor Green "NSX Memory (GB): "
@@ -778,6 +765,29 @@ if($confirmDeployment -eq 'true') {
         Write-Host -ForegroundColor White $NSX_Mgr_UI_Pass
         Write-Host -NoNewline -ForegroundColor Green "NSX CLI Password: "
         Write-Host -ForegroundColor White $NSX_Mgr_CLI_Pass
+    }
+
+    if($ConfigureNSX -eq 'true') {
+        Write-Host -ForegroundColor Yellow "`n----------------------- NSX Configuration -----------------------"
+        Write-Host -NoNewline -ForegroundColor Green "Number of NSX controller to deploy: "
+        Write-Host -ForegroundColor White $NSX_Controllers_Amount
+        Write-Host -NoNewline -ForegroundColor Green "VLAN ID for VXLAN: "
+        Write-Host -NoNewline -ForegroundColor White $NSX_VXLAN_VLANID
+        Write-Host -NoNewline -ForegroundColor Green "             VTEP per ESX host: "
+        Write-Host -ForegroundColor White $NSX_VXLAN_VTEP_Count 
+        Write-Host -NoNewline -ForegroundColor Green "Segment ID (VNI) range: "
+        Write-Host -NoNewline -ForegroundColor White $NSX_VXLAN_Segment_ID_Begin
+        Write-Host -NoNewline -ForegroundColor Green " to "
+        Write-Host -ForegroundColor White $NSX_VXLAN_Segment_ID_End
+        Write-Host -NoNewline -ForegroundColor Green "Transport Zone Name: "
+        Write-Host -NoNewline -ForegroundColor White $NSX_VXLAN_TZ_Name
+        Write-Host -NoNewline -ForegroundColor Green "   Transport Zone Mode: "
+        Write-Host -ForegroundColor White $NSX_VXLAN_TZ_Mode
+        Write-Host -NoNewline -ForegroundColor Green "DLR to Deploy: "
+        Write-Host -NoNewline -ForegroundColor White $NumDLR
+        Write-Host -NoNewline -ForegroundColor Green "                  ESG to Deploy: "
+        Write-Host -ForegroundColor White $NumESG
+
     }
 
     $viConnection = Connect-VIServer $VIServer -User $VIUsername -Password $VIPassword -WarningAction SilentlyContinue
@@ -832,7 +842,7 @@ if($confirmDeployment -eq 'true') {
         exit
     }
     Clear-Host
-    # Set temporary host record on deployment laptop/desktop
+    # Set temporary host record on deployment laptop/desktop to mitigate if ESX host not added to DNS
     "$VIServerIP  $VIServer" | Add-Content -PassThru $hostfile
 }
 
@@ -973,8 +983,7 @@ if($setupNewVC -eq 'true') {
             #$VMIPAddress = $NestedESXiHostnameToIPs[$i].Values
             $targetVMHost = $VMIPAddress
             if($addHostByDnsName -eq 'true') {
-                $targetVMHost = $VMName
-                $targetVMHost = 'esx02.tataoui.com' # this worked with DNS set to 192.168.30.2   
+                $targetVMHost = $VMName 
             }
             My-Logger "Adding ESXi host '$targetVMHost' to Cluster - $NewVCVSANClusterName ..."
             Add-VMHost -Server $vc -Name $targetVMHost -Location (Get-Cluster -Name $NewVCVSANClusterName) -User "root" -Password $VMPassword -Force | Out-File -Append -LiteralPath $verboseLogFile
