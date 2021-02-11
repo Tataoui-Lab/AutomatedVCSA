@@ -922,6 +922,7 @@ if($deployVCSA -eq 'true') {
         $config.new_vcsa.vc.deployment_network = $VMNetwork
         $config.new_vcsa.vc.datastore = $datastore
         $config.new_vcsa.vc.datacenter = $datacenter.name
+
         $config.new_vcsa.appliance.thin_disk_mode = $true
         $config.new_vcsa.appliance.deployment_option = $VCSADeploymentSize
         $config.new_vcsa.appliance.name = $VCSADisplayName
@@ -1090,8 +1091,9 @@ if($setupNewVC -eq 'true') {
     Get-VDSwitch $vds | Get-VDPortgroup $VLANMGMTPortgroup | Get-VDUplinkTeamingPolicy | Set-VDUplinkTeamingPolicy -ActiveUplinkPort 'dvUplink1' -StandbyUplinkPort 'dvUplink2'
     Get-VDSwitch $vds | Get-VDPortgroup $VLANVMPortgroup | Get-VDUplinkTeamingPolicy | Set-VDUplinkTeamingPolicy -ActiveUplinkPort 'dvUplink1' -StandbyUplinkPort 'dvUplink2'
     Get-VDSwitch $vds | Get-VDPortgroup $VLANTrunkPortgroup | Get-VDUplinkTeamingPolicy | Set-VDUplinkTeamingPolicy -ActiveUplinkPort 'dvUplink1' -StandbyUplinkPort 'dvUplink2'
-    # VXLAN portgroups
+
     Get-VDSwitch $vds | Get-VDPortgroup $VXLANDVPortgroup | Get-VDUplinkTeamingPolicy | Set-VDUplinkTeamingPolicy -ActiveUplinkPort 'dvUplink1' -StandbyUplinkPort 'dvUplink2'
+
 
     # Define Portgroup Secuirty Policy
     # Get-VDSwitch $vds | Get-VDPortgroup $VLANVMPortgroup | Get-VDSecurityPolicy | Set-VDSecurityPolicy -AllowPromiscuous $false -ForgedTransmits $false -MacChanges $true 
@@ -1148,19 +1150,28 @@ if($setupNewVC -eq 'true') {
         $ovfconfig.common.vsm_cli_en_passwd_0.value = $NSX_Mgr_CLI_Pass
 
         My-Logger "Deploying NSX Manager VM - $NSX_Mgr_Name ..."
+        #$vmhost = Get-VMHost -Name $VIServer
+        #$datastore = Get-Datastore -Name $VMDatastore
+        #$vm = Import-VApp -Source $NSX_Mgr_OVA -OvfConfiguration $ovfconfig -Name $NSX_Mgr_Name -Location $NewVCVSANClusterName -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin
         
+        # One option - without setting CEIP, DiskStorageFormat, Host to use
+        #New-NSXManager -NsxManagerOVF $NSXManagerOVF -Name $NSX_Mgr_Name -ClusterName $NSX_VC_Cluster -ManagementPortGroupName $NSX_VC_Network -DatastoreName $NSX_VC_Datastore -FolderName $NSX_VC_Folder -CliPassword $NSX_MGR_CLI_Pass -CliEnablePassword $NSX_MGR_CLI_Pass -Hostname $NSX_MGR_Hostname -IpAddress $NSX_MGR_IP -Netmask $NSX_MGR_Netmask -Gateway $NSX_MGR_Gateway -DnsServer $NSX_MGR_DNSServer -DnsDomain $NSX_MGR_DNSDomain -NtpServer $NSX_MGR_NTPServer -EnableSsh -StartVm)
+
         $vmhost = Get-VMHost -Server $vc -Name $VIServer
         $datastore = Get-Datastore -Server $vc -Name $VMDatastore
         $vm = Import-VApp -Source $NSX_Mgr_OVA -OvfConfiguration $ovfconfig -Name $NSX_Mgr_Name -Location $NewVCVSANClusterName -Server $vc -VMHost $vmhost -Datastore $datastore -DiskStorageFormat thin
-        # Alternative option, but without setting CEIP, DiskStorageFormat, and Host to use
-        #New-NSXManager -NsxManagerOVF $NSXManagerOVF -Name $NSX_Mgr_Name -ClusterName $NSX_VC_Cluster -ManagementPortGroupName $NSX_VC_Network -DatastoreName $NSX_VC_Datastore -FolderName $NSX_VC_Folder -CliPassword $NSX_MGR_CLI_Pass -CliEnablePassword $NSX_MGR_CLI_Pass -Hostname $NSX_MGR_Hostname -IpAddress $NSX_MGR_IP -Netmask $NSX_MGR_Netmask -Gateway $NSX_MGR_Gateway -DnsServer $NSX_MGR_DNSServer -DnsDomain $NSX_MGR_DNSDomain -NtpServer $NSX_MGR_NTPServer -EnableSsh -StartVm)
-
+        
         My-Logger "Updating NSX VM vCPU Count to '$NSX_Mgr_vCPU' & vMEM to '$NSX_Mgr_vMem GB' ..."
+        #Set-VM -Server $viConnection -VM $vm -NumCpu $NSX_Mgr_vCPU -MemoryGB $NSX_Mgr_vMem -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
         Set-VM -Server $vc -VM $vm -NumCpu $NSX_Mgr_vCPU -MemoryGB $NSX_Mgr_vMem -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
 
         My-Logger "Powering On NSX - $NSX_Mgr_Name ..."
         $vm | Start-Vm -RunAsync | Out-Null
     }
+
+    My-Logger "Creating new VXLAN DVPortgroup - $VXLANDVPortgroup ..."
+    #$vds = Get-VDSwitch $VDSName
+    #New-VDPortgroup -Server $vc -Name $VXLANDVPortgroup -Vds $vds -NumPorts 24 #-PortBinding Ephemeral/Static
 
     if($DeployNSX -eq 'true' -and $configureNSX -eq 'true' -and $setupVXLAN -eq 'true') {
         My-Logger "Validate NSX Manager access ..."
@@ -1216,9 +1227,8 @@ if($setupNewVC -eq 'true') {
     # Remove-NsxSegmentIdRange $SegmentID 
 
     My-Logger  "Creating VXLAN Multicast IP range ..."
-    #. "D:\New-NsxMulticastRange.ps1"
-    . $ScriptPath'New-NsxMulticastRange.ps1'
-    # $MultiCast = New-NsxMulticastRange -Name "Multicast1" -Begin $NSX_VXLAN_Multicast_Range_Begin -End $NSX_VXLAN_Multicast_Range_End
+    . "D:\New-NsxMulticastRange.ps1"
+    $MultiCast = New-NsxMulticastRange -Name "Multicast1" -Begin $NSX_VXLAN_Multicast_Range_Begin -End $NSX_VXLAN_Multicast_Range_End
 
     My-Logger "Check if VXLAN (VTEP) IP Pool already exists .."
     $VTEPIPPool = Get-NsxIpPool -Name $NSX_VXLAN_IP_Pool_Name -ErrorAction SilentlyContinue
@@ -1255,7 +1265,6 @@ if($setupNewVC -eq 'true') {
         }
         $intRow++
     }
-        
     $release = Release-Ref($WorkSheet_Exclusions)
     My-Logger "Added $ExcludedVMCount VM(s) to NSX Distributed Firewall exclusion list ..."
 
@@ -1287,101 +1296,100 @@ if($setupNewVC -eq 'true') {
     My-Logger "Added $LogicalSwitchCount new Logical Switches to Transport Zone - $NSX_VXLAN_TZ_Name ..."
 
     My-Logger "Creating NSX Distributed Logical Routers (DLR) ..."
-    for ($intDLR=1; $intDLR -le $NumDLR; $intDLR++ ) {
-        $WorkSheetname = "Distributed Logical Routers - " + $intDLR
-        $WorkSheet_DLR = $WorkBook.Sheets.Item($WorkSheetname)
-        # Start at row 2 (minus header)
-        $intRow = 2
-        $DLRCount = 0
+    $WorkSheetname = "Distributed Logical Routers"
+    $WorkSheet_DLR = $WorkBook.Sheets.Item($WorkSheetname)
+    # Start at row 2 (minus header)
+    $intRow = 2
+    $DLRCount = 0
 
-            $DLR_Name               = $WorkSheet_DLR.Cells.Item($intRow, 1).Value()
-            $DLR_Tenant             = $WorkSheet_DLR.Cells.Item($intRow, 2).Value()
-            $DLR_Cluster            = $WorkSheet_DLR.Cells.Item($intRow, 3).Value()
-            $DLR_Datastore          = $WorkSheet_DLR.Cells.Item($intRow, 4).Value()
-            $DLR_Password           = $WorkSheet_DLR.Cells.Item($intRow, 5).Value()
-            $DLR_HA                 = $WorkSheet_DLR.Cells.Item($intRow, 6).Value()
-            $DLR_VNIC0_Name         = $WorkSheet_DLR.Cells.Item($intRow, 7).Value()
-            $DLR_VNIC0_IP           = $WorkSheet_DLR.Cells.Item($intRow, 8).Value()
-            $DLR_VNIC0_Prefixlength = $WorkSheet_DLR.Cells.Item($intRow, 9).Value()
-            $DLR_VNIC0_PortGroup    = $WorkSheet_DLR.Cells.Item($intRow, 10).Value()
-            $DLR_MGMT_PortGroup     = $WorkSheet_DLR.Cells.Item($intRow, 11).Value()
+        $DLR_Name               = $WorkSheet_DLR.Cells.Item($intRow, 1).Value()
+        $DLR_Tenant             = $WorkSheet_DLR.Cells.Item($intRow, 2).Value()
+        $DLR_Cluster            = $WorkSheet_DLR.Cells.Item($intRow, 3).Value()
+        $DLR_Datastore          = $WorkSheet_DLR.Cells.Item($intRow, 4).Value()
+        $DLR_Password           = $WorkSheet_DLR.Cells.Item($intRow, 5).Value()
+        $DLR_HA                 = $WorkSheet_DLR.Cells.Item($intRow, 6).Value()
+        $DLR_VNIC0_Name         = $WorkSheet_DLR.Cells.Item($intRow, 7).Value()
+        $DLR_VNIC0_IP           = $WorkSheet_DLR.Cells.Item($intRow, 8).Value()
+        $DLR_VNIC0_Prefixlength = $WorkSheet_DLR.Cells.Item($intRow, 9).Value()
+        $DLR_VNIC0_PortGroup    = $WorkSheet_DLR.Cells.Item($intRow, 10).Value()
+        $DLR_MGMT_PortGroup     = $WorkSheet_DLR.Cells.Item($intRow, 11).Value()
 
-            $enableHA = $false
-            if($DLR_HA -eq "Yes") {
-                $enableHA = $true
-            }
-
-            # figure out the connected portgroup. First, assume it's a logical switch and if it's not, move on to a PortGroup
-            $connectedTo = (Get-NsxTransportZone -Name $NSX_VXLAN_TZ_Name | Get-NsxLogicalSwitch $DLR_VNIC0_PortGroup)
-            if($connectedTo -eq $null) {
-                $connectedTo = (Get-VDPortgroup $DLR_VNIC0_PortGroup)
-            }
-            # Now for the management port
-            $mgtNic = (Get-NsxTransportZone -Name $NSX_VXLAN_TZ_Name | Get-NsxLogicalSwitch $DLR_MGMT_PortGroup)
-            if($mgtNic -eq $null) {
-                $mgtNic = (Get-VDPortgroup $DLR_MGMT_PortGroup)
-            }
-            $vnic0 = New-NsxLogicalRouterInterfaceSpec -Name $DLR_VNIC0_Name -Type Uplink -ConnectedTo $connectedTo -PrimaryAddress $DLR_VNIC0_IP -SubnetPrefixLength $DLR_VNIC0_Prefixlength
-            $DLR = New-NsxLogicalRouter -Name $DLR_Name -Tenant $DLR_Tenant -Cluster (Get-Cluster -Name $DLR_Cluster) -Datastore (Get-Datastore -Name $DLR_Datastore) -EnableHa:$enableHA -Interface $vnic0 -ManagementPortGroup $mgtNic
-
-            if(!($DLR)) {
-                My-Logger "Unable to create Distributed Logical Routers - $DLR_Name ..."
-            } else {
-                $DLRCount++
-            }
-            #$intRow++
-        #My-Logger "Added $DLRCount Distributed Logical Routers ..."
-
-        My-Logger "Configure Logical Interface (LIF) to newly created Distributed Logical Routers - $DLR_Name ..."
-        $intRow = 10 # move cursor to row 10
-        $lifCount = 0
-        While ($WorkSheet_DLR.Cells.Item($intRow, 1).Value() -ne $null)
-        {
-            # Get the Logical Switch name from worksheet and add it to DLR
-            $LIF_Name      = $WorkSheet_DLR.Cells.Item($intRow, 1).Value()
-            $LIF_Address   = $WorkSheet_DLR.Cells.Item($intRow, 2).Value()
-            $LIF_SPrefix   = $WorkSheet_DLR.Cells.Item($intRow, 3).Value()
-            $LIF_LogSwitch = $WorkSheet_DLR.Cells.Item($intRow, 4).Value()
-            $DLR = Get-NsxLogicalRouter -Name $DLR_Name
-
-            My-Logger "Adding '$LIF_Name' LIF to DLR '$DLR_Name'"
-            $LS = Get-NsxLogicalSwitch -Name $LIF_LogSwitch
-            $DLR | New-NsxLogicalRouterInterface -Type Internal -name $LIF_Name -ConnectedTo $LS -PrimaryAddress $LIF_Address -SubnetPrefixLength $LIF_SPrefix | out-null
-            $lifCount++
-            $intRow++
+        $enableHA = $false
+        if($DLR_HA -eq "Yes") {
+            $enableHA = $true
         }
-        My-Logger "$lifCount LIF were added to $DLR_Name ..."
 
-        My-Logger "Configure newly created Distributed Logical Routers '$DLR_Name' ..."
-        $intRow = 6 # Move cursor to row 6
-    
-            $DLR_RouteID           = $WorkSheet_DLR.Cells.Item($intRow, 1).Value()
-            $DLR_BGP_Protocol_Addr = $WorkSheet_DLR.Cells.Item($intRow, 2).Value()
-            $DLR_BGP_Foward_Addr   = $WorkSheet_DLR.Cells.Item($intRow, 3).Value()
-            $DLR_BGP_IPAddr        = $WorkSheet_DLR.Cells.Item($intRow, 4).Value()
-            $DLR_BGP_LocalAS       = $WorkSheet_DLR.Cells.Item($intRow, 5).Value()
-            $DLR_BGP_RemoteAS      = $WorkSheet_DLR.Cells.Item($intRow, 6).Value()
-            $DLR_BGP_KeepAlive     = $WorkSheet_DLR.Cells.Item($intRow, 7).Value()
-            $DLR_BGP_HoldDown      = $WorkSheet_DLR.Cells.Item($intRow, 8).Value()
+        # figure out the connected portgroup. First, assume it's a logical switch and if it's not, move on to a PortGroup
+        $connectedTo = (Get-NsxTransportZone -Name $NSX_VXLAN_TZ_Name | Get-NsxLogicalSwitch $DLR_VNIC0_PortGroup)
+        if($connectedTo -eq $null) {
+            $connectedTo = (Get-VDPortgroup $DLR_VNIC0_PortGroup)
+        }
+        # Same for the management port
+        $mgtNic = (Get-NsxTransportZone -Name $NSX_VXLAN_TZ_Name | Get-NsxLogicalSwitch $DLR_MGMT_PortGroup)
+        if($mgtNic -eq $null) {
+            $mgtNic = (Get-VDPortgroup $DLR_MGMT_PortGroup)
+        }
 
-        $dlr = Get-NsxLogicalRouter -Name $DLR_Name
-        $dlr | Get-NsxLogicalRouterRouting | Set-NsxLogicalRouterRouting -EnableBgp -LocalAS $DLR_BGP_LocalAS -RouterId $DLR_RouteID -confirm:$false
-        $dlr = Get-NsxLogicalRouter -Name $DLR_Name
-        $dlr | Get-NsxLogicalRouterRouting | Set-NsxLogicalRouterBgp -GracefulRestart:$false -confirm:$false
-        $dlr = Get-NsxLogicalRouter -Name $DLR_Name
-        $dlr | Get-NsxLogicalRouterRouting | Set-NsxLogicalRouterRouting -EnableBgpRouteRedistribution -confirm:$false
-        $dlr = Get-NsxLogicalRouter -Name $DLR_Name
-        $dlr | Get-NsxLogicalRouterRouting | New-NsxLogicalRouterRedistributionRule -FromConnected -Learner bgp -confirm:$false
-        $dlr = Get-NsxLogicalRouter -Name $DLR_Name
-        $dlr | Get-NsxLogicalRouterRouting | Set-NsxLogicalRouterRouting -EnableOspfRouteRedistribution:$false -Confirm:$false
-        $dlr = Get-NsxLogicalRouter -Name $DLR_Name
-        $dlr | Get-NsxLogicalRouterRouting | Get-NsxLogicalRouterRedistributionRule -Learner ospf | Remove-NsxLogicalRouterRedistributionRule -confirm:$false
-        $dlr = Get-NsxLogicalRouter -Name $DLR_Name
-        $dlr | Get-NsxLogicalRouterRouting | New-NsxLogicalRouterBgpNeighbour -IpAddress $DLR_BGP_IPAddr -RemoteAS $DLR_BGP_RemoteAS `
--ForwardingAddress $DLR_BGP_Foward_Addr -ProtocolAddress $DLR_BGP_Protocol_Addr -KeepAliveTimer $DLR_BGP_KeepAlive -HoldDownTimer $DLR_BGP_HoldDown -confirm:$false
-    }
-    $release = Release-Ref($WorkSheet_DLR)
+        $vnic0 = New-NsxLogicalRouterInterfaceSpec -Name $DLR_VNIC0_Name -Type Uplink -ConnectedTo $connectedTo -PrimaryAddress $DLR_VNIC0_IP -SubnetPrefixLength $DLR_VNIC0_Prefixlength
+        $DLR = New-NsxLogicalRouter -Name $DLR_Name -Tenant $DLR_Tenant -Cluster (Get-Cluster -Name $DLR_Cluster) -Datastore (Get-Datastore -Name $DLR_Datastore) -EnableHa:$enableHA -Interface $vnic0 -ManagementPortGroup $mgtNic
+
+        if(!($DLR)) {
+            My-Logger "Unable to create Distributed Logical Routers - $DLR_Name ..."
+        } else {
+            $DLRCount++
+        }
+        $intRow++
     My-Logger "Added $DLRCount Distributed Logical Routers ..."
+
+    My-Logger "Configure Logical Interface (LIF) to newly created Distributed Logical Routers - $DLR_Name ..."
+    $intRow = 10 # move cursor to row 10
+    $lifCount = 0
+    While ($WorkSheet_DLR.Cells.Item($intRow, 1).Value() -ne $null)
+    {
+        # Get the Logical Switch name from worksheet and add it to DLR
+        $LIF_Name      = $WorkSheet_DLR.Cells.Item($intRow, 1).Value()
+        $LIF_Address   = $WorkSheet_DLR.Cells.Item($intRow, 2).Value()
+        $LIF_SPrefix   = $WorkSheet_DLR.Cells.Item($intRow, 3).Value()
+        $LIF_LogSwitch = $WorkSheet_DLR.Cells.Item($intRow, 4).Value()
+        $DLR = Get-NsxLogicalRouter -Name $DLR_Name
+
+        My-Logger "Adding '$LIF_Name' LIF to DLR '$DLR_Name'"
+        $LS = Get-NsxLogicalSwitch -Name $LIF_LogSwitch
+        $DLR | New-NsxLogicalRouterInterface -Type Internal -name $LIF_Name -ConnectedTo $LS -PrimaryAddress $LIF_Address -SubnetPrefixLength $LIF_SPrefix | out-null
+        $lifCount++
+        $intRow++
+    }
+    My-Logger "$lifCount LIF were added to $DLR_Name ..."
+
+    My-Logger "Configure newly created Distributed Logical Routers '$DLR_Name' ..."
+    $intRow = 6 # Move cursor to row 6
+    
+        $DLR_RouteID           = $WorkSheet_DLR.Cells.Item($intRow, 1).Value()
+        $DLR_BGP_Protocol_Addr = $WorkSheet_DLR.Cells.Item($intRow, 2).Value()
+        $DLR_BGP_Foward_Addr   = $WorkSheet_DLR.Cells.Item($intRow, 3).Value()
+        $DLR_BGP_IPAddr        = $WorkSheet_DLR.Cells.Item($intRow, 4).Value()
+        $DLR_BGP_LocalAS       = $WorkSheet_DLR.Cells.Item($intRow, 5).Value()
+        $DLR_BGP_RemoteAS      = $WorkSheet_DLR.Cells.Item($intRow, 6).Value()
+        $DLR_BGP_KeepAlive     = $WorkSheet_DLR.Cells.Item($intRow, 7).Value()
+        $DLR_BGP_HoldDown      = $WorkSheet_DLR.Cells.Item($intRow, 8).Value()
+
+    $dlr = Get-NsxLogicalRouter -Name $DLR_Name
+    $dlr | Get-NsxLogicalRouterRouting | Set-NsxLogicalRouterRouting -EnableBgp -LocalAS $DLR_BGP_LocalAS -RouterId $DLR_RouteID -confirm:$false
+    $dlr = Get-NsxLogicalRouter -Name $DLR_Name
+    $dlr | Get-NsxLogicalRouterRouting | Set-NsxLogicalRouterBgp -GracefulRestart:$false -confirm:$false
+    $dlr = Get-NsxLogicalRouter -Name $DLR_Name
+    $dlr | Get-NsxLogicalRouterRouting | Set-NsxLogicalRouterRouting -EnableBgpRouteRedistribution -confirm:$false
+    $dlr = Get-NsxLogicalRouter -Name $DLR_Name
+    $dlr | Get-NsxLogicalRouterRouting | New-NsxLogicalRouterRedistributionRule -FromConnected -Learner bgp -confirm:$false
+    $dlr = Get-NsxLogicalRouter -Name $DLR_Name
+    $dlr | Get-NsxLogicalRouterRouting | Set-NsxLogicalRouterRouting -EnableOspfRouteRedistribution:$false -Confirm:$false
+    $dlr = Get-NsxLogicalRouter -Name $DLR_Name
+    $dlr | Get-NsxLogicalRouterRouting | Get-NsxLogicalRouterRedistributionRule -Learner ospf | Remove-NsxLogicalRouterRedistributionRule -confirm:$false
+    $dlr = Get-NsxLogicalRouter -Name $DLR_Name
+    $dlr | Get-NsxLogicalRouterRouting | New-NsxLogicalRouterBgpNeighbour -IpAddress $DLR_BGP_IPAddr -RemoteAS $DLR_BGP_RemoteAS `
+-ForwardingAddress $DLR_BGP_Foward_Addr -ProtocolAddress $DLR_BGP_Protocol_Addr -KeepAliveTimer $DLR_BGP_KeepAlive -HoldDownTimer $DLR_BGP_HoldDown -confirm:$false
+
+    $release = Release-Ref($WorkSheet_DLR)
     My-Logger "Distributed Logical Routers deployment completed ..."
 
     My-Logger "Creating Edge Services Gateways (ESG) ..."
