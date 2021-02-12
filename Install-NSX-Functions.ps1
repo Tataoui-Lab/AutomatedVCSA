@@ -11,6 +11,7 @@ function Http-Web-Request([string]$method,[string]$encoding,[string]$server,[str
   [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}
 
   ## Add the method (GET, POST, etc.)
+  $request.Method = $method
   ## Add an headers to the request
   foreach($key in $headers.keys)
   {

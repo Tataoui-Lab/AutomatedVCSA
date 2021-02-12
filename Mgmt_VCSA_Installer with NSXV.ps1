@@ -1468,7 +1468,7 @@ if($setupNewVC -eq 'true') {
     My-Logger "Added $ESGCount Edge Services Gateways ..."
 
     My-Logger "Adding interfaces to newly created Edge Service Gateway - $ESG_Name ..."
-    $intRow = 16 # move cursor to row 16
+    $intRow = 20 # move cursor to row 20
     $ESGIFIndex = 1
     $ESGIFCount = 0
     While ($WorkSheet_ESG.Cells.Item($intRow, 1).Value() -ne $null)
@@ -1488,17 +1488,19 @@ if($setupNewVC -eq 'true') {
     }
     My-Logger "$ESGIFCount interfaces were added to ESG - $ESG_Name ..."
 
-    My-Logger "Configure newly created Distributed Logical Routers '$DLR_Name' ..."
+    My-Logger "Configure newly created Edge Services Gateway '$ESG_Name' ..."
     $intRow = 12 # Move cursor to row 12
     
         $ESG_RouteID           = $WorkSheet_ESG.Cells.Item($intRow, 1).Value()
-        $ESG_BGP_Protocol_Addr = $WorkSheet_ESG.Cells.Item($intRow, 2).Value()
-        $ESG_BGP_Foward_Addr   = $WorkSheet_ESG.Cells.Item($intRow, 3).Value()
-        $ESG_BGP_IPAddr        = $WorkSheet_ESG.Cells.Item($intRow, 4).Value()
-        $ESG_BGP_LocalAS       = $WorkSheet_ESG.Cells.Item($intRow, 5).Value()
-        $ESG_BGP_RemoteAS      = $WorkSheet_ESG.Cells.Item($intRow, 6).Value()
-        $ESG_BGP_KeepAlive     = $WorkSheet_ESG.Cells.Item($intRow, 7).Value()
-        $ESG_BGP_HoldDown      = $WorkSheet_ESG.Cells.Item($intRow, 8).Value()
+        $ESG_BGP_IPAddr        = $WorkSheet_ESG.Cells.Item($intRow, 2).Value()
+        $ESG_BGP_LocalAS       = $WorkSheet_ESG.Cells.Item($intRow, 3).Value()
+        $ESG_BGP_RemoteAS      = $WorkSheet_ESG.Cells.Item($intRow, 4).Value()
+        $ESG_BGP_KeepAlive     = $WorkSheet_ESG.Cells.Item($intRow, 5).Value()
+        $ESG_BGP_HoldDown      = $WorkSheet_ESG.Cells.Item($intRow, 6).Value()
+    $intRow = 16 # Move cursor to row 16
+        $ESG_DefaultGW_vNic      = $WorkSheet_ESG.Cells.Item($intRow, 1).Value()
+        $ESG_DefaultGW_IP        = $WorkSheet_ESG.Cells.Item($intRow, 2).Value()
+        $ESG_DefaultGW_AdminDist = $WorkSheet_ESG.Cells.Item($intRow, 3).Value()
 
     $ESG = Get-NsxEdge -Name $ESG_Name
     $ESG | Get-NsxEdgeRouting | Set-NsxEdgeRouting -EnableBgp -LocalAS $ESG_BGP_LocalAS -RouterId $ESG_RouteID -confirm:$false
@@ -1506,17 +1508,20 @@ if($setupNewVC -eq 'true') {
     $ESG | Get-NsxEdgeRouting | Set-NsxEdgeBgp -GracefulRestart:$false -confirm:$false
     $ESG = Get-NsxEdge -Name $ESG_Name
     $ESG | Get-NsxEdgeRouting | Set-NsxEdgeRouting -EnableBgpRouteRedistribution -confirm:$false
-    $ESG = Get-NsxEdge -Name $ESG_Name
+    #$ESG = Get-NsxEdge -Name $ESG_Name
     ##$ESG | Get-NsxEdgeRouting | Set-NsxEdgeBgp -FromConnected -Learner bgp -confirm:$false
     $ESG = Get-NsxEdge -Name $ESG_Name
     $ESG | Get-NsxEdgeRouting | Set-NsxEdgeRouting -EnableOspfRouteRedistribution:$false -Confirm:$false
     $ESG = Get-NsxEdge -Name $ESG_Name
-    $ESG | Get-NsxEdgeRouting | Set-NsxEdgeRouting -DefaultGatewayVnic 0 -DefaultGatewayAddress 192.168.10.2 -DefaultGatewayAdminDistance 1 -Confirm:$false
+    $ESGvNic = $ESG | Get-NsxEdgeInterface -Name $ESG_DefaultGW_vNic
     $ESG = Get-NsxEdge -Name $ESG_Name
-    $ESG | Get-NsxEdgeRouting | Get-NsxLogicalRouterRedistributionRule -Learner ospf | Remove-NsxLogicalRouterRedistributionRule -confirm:$false
+    $ESG | Get-NsxEdgeRouting | Set-NsxEdgeRouting -DefaultGatewayVnic $ESGvNic.Index -DefaultGatewayAddress $ESG_DefaultGW_IP `
+    -DefaultGatewayAdminDistance $ESG_DefaultGW_AdminDist -Confirm:$false
+    #$ESG = Get-NsxEdge -Name $ESG_Name
+    #$ESG | Get-NsxEdgeRouting | Get-NsxLogicalRouterRedistributionRule -Learner ospf | Remove-NsxLogicalRouterRedistributionRule -confirm:$false
     $ESG = Get-NsxEdge -Name $ESG_Name
-    $ESG | Get-NsxEdgeRouting | New-NsxLogicalRouterBgpNeighbour -IpAddress $DLR_BGP_IPAddr -RemoteAS $DLR_BGP_RemoteAS `
--ForwardingAddress $DLR_BGP_Foward_Addr -ProtocolAddress $DLR_BGP_Protocol_Addr -KeepAliveTimer $DLR_BGP_KeepAlive -HoldDownTimer $DLR_BGP_HoldDown -confirm:$false
+    $ESG | Get-NsxEdgeRouting | New-NsxEdgeBgpNeighbour -IpAddress $ESG_BGP_IPAddr -RemoteAS $ESG_BGP_RemoteAS -Weight 60 `
+-KeepAliveTimer $ESG_BGP_KeepAlive -HoldDownTimer $ESG_BGP_HoldDown -confirm:$false
 
     $release = Release-Ref($WorkSheet_ESG)
     My-Logger "Edge Services Gateway deployment completed ..."
@@ -1585,24 +1590,34 @@ $strEmailBody = @"
     <td style='text-align:center'>$duration minutes</td>
   </tr>
   <tr>
-    <th>Operation System</th>
-    <th>Role</th> 
-    <th>Virtual Machine Name</th>
+    <th>VCSA Name</th>
+    <th>VCSA Size</th> 
+    <th>VCSA IP address</th>
   </tr>
   <tr>
-    <td style='text-align:center'>$strVMTemplate</td>
-    <td style='text-align:center'>$strVMRole</td> 
-    <td style='text-align:center'>$strVMName</td>
+    <td style='text-align:center'>$VCSAHostname</td>
+    <td style='text-align:center'>$VCSADeploymentSize</td> 
+    <td style='text-align:center'>$VCSAIPAddress</td>
   </tr>
   <tr>
-    <th>IP address</th>
-    <th>FreeSpace (GB)</th> 
-    <th>Domain</th>
+    <th>VDS Mgmt Portgroup</th>
+    <th>VDS VM Portgroup</th> 
+    <th>VDS Trunk Portgroup</th>
   </tr>
   <tr>
-    <td style='text-align:center'>$strVMGuestIP</td>
-    <td style='text-align:center'>$strVMFreeSpace</td> 
-    <td style='text-align:center'>$JoinDomain</td>
+    <td style='text-align:center'>$VLANMGMTPortgroup</td>
+    <td style='text-align:center'>$VLANVMPortgroup</td> 
+    <td style='text-align:center'>$VLANTrunkPortgroup</td>
+  </tr>
+  <tr>
+    <th>Repository Name</th>
+    <th>Content Library Datastore</th> 
+    <th>Path to upload ISO</th>
+  </tr>
+  <tr>
+    <td style='text-align:center'>$ConLibName</td>
+    <td style='text-align:center'>$ConLibDSName</td> 
+    <td style='text-align:center'>$ISOPath</td>
   </tr>
 </table>
 "@
