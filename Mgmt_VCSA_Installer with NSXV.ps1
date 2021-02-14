@@ -1,7 +1,7 @@
 ﻿#
 # Author: Dominic Chan (dominic.chan@tataoui.com)
 # Date: 2020-11-11
-# Last Update: 2021-02-10
+# Last Update: 2021-02-13
 #
 # Description:
 # VCSA unattended installation with post installation tasks and NSX-V integration.
@@ -30,7 +30,7 @@ $DataSourcePath = "G:\Transfer\VCSA-NSX-Configure.xlsx" # Absolute path to Excel
 #$DataSourcePath = "$ScriptPath\VMware.xlsx" # Relative path to Excel Workbook as data sources
 $hostfile = "$env:windir\System32\drivers\etc\hosts"
 
-Function Release-Ref ($ref) {
+Function Clear-Ref ($ref) {
     ([System.Runtime.InteropServices.Marshal]::ReleaseComObject([System.__ComObject]$ref) -gt 0)
     [System.GC]::Collect()
     [System.GC]::WaitForPendingFinalizers()
@@ -156,8 +156,9 @@ if ($DataSource -eq 'S') {
     $NSX_Mgr_CLIPassword = "VMw@re123!"
     $NSX_Mgr_SSHEnable = "true"
     $NSX_Mgr_CEIPEnable = "false"
-    $NSX_Mgr_vCPU = "2" # Reconfigure NSX vCPU
-    $NSX_Mgr_vMem = "8" # Reconfigure NSX vMEM (GB)
+    $NSX_Mgr_vCPU = '2' # Reconfigure NSX vCPU
+    $NSX_Mgr_vMem = '8' # Reconfigure NSX vMEM (GB)
+    $NSX_License  = '--'
 
 } else {
     # Import VCSA and NSX Info from Excel
@@ -172,7 +173,7 @@ if ($DataSource -eq 'S') {
     #$NSXTManagerOVA = $MgmtVCSAParameters.NSXT_Manager_Source
     #$NSXTControllerOVA = 
     #$NSXTEdgeOVA = $MgmtVCSAParameters.NSXT_Edge_Source
-    $release = Release-Ref($WorkSheet)
+    $release = Clear-Ref($WorkSheet)
 
     $WorkSheetname = "Email"
     $WorkSheet = $WorkBook.Sheets.Item($WorkSheetname)
@@ -181,7 +182,7 @@ if ($DataSource -eq 'S') {
     $strSMTPServer   = $WorkSheet.Cells.Item(2, 3).Value() # SMTP Server
     $intSMTPPort     = $WorkSheet.Cells.Item(2, 4).Value() # SMTP Server Port
     $strSendTo       = $WorkSheet.Cells.Item(2, 5).Value() # Email Recipient
-    $release = Release-Ref($WorkSheet)
+    $release = Clear-Ref($WorkSheet)
 
     $WorkSheetname = "VCSA Information"
     $WorkSheet = $WorkBook.Sheets.Item($WorkSheetname)
@@ -271,7 +272,7 @@ if ($DataSource -eq 'S') {
     $ConLibName      = $WorkSheet.Cells.Item(29, 2).Value() # Content Library repository name
     $ConLibDSName    = $WorkSheet.Cells.Item(29, 3).Value() # Datastore for Content Library
     $ISOPath         = $WorkSheet.Cells.Item(29, 4).Value() # Path to ISO files to upload (note it will upload ALL isos found in this folder)
-    $release = Release-Ref($WorkSheet)
+    $release = Clear-Ref($WorkSheet)
 
     $WorkSheetname = "NSX Information"
     $WorkSheet = $WorkBook.Sheets.Item($WorkSheetname)
@@ -324,7 +325,7 @@ if ($DataSource -eq 'S') {
 
     $NumDLR = $WorkSheet.Cells.Item(29, 1).Value()
     $NumESG = $WorkSheet.Cells.Item(29, 2).Value()
-    $release = Release-Ref($WorkSheet)
+    $release = Clear-Ref($WorkSheet)
 
     $WorkSheetname = "IP Pools"
     $WorkSheet = $WorkBook.Sheets.Item($WorkSheetname)
@@ -345,7 +346,7 @@ if ($DataSource -eq 'S') {
     $NSX_VXLAN_IP_Pool_DNSSuffix = $WorkSheet.Cells.Item(3, 7).Value()
     $NSX_VXLAN_IP_Pool_Start     = $WorkSheet.Cells.Item(3, 8).Value()
     $NSX_VXLAN_IP_Pool_End       = $WorkSheet.Cells.Item(3, 9).Value()
-    $release = Release-Ref($WorkSheet)
+    $release = Clear-Ref($WorkSheet)
 }
 
 #### DO NOT EDIT BEYOND HERE ####
@@ -1178,6 +1179,20 @@ if($setupNewVC -eq 'true') {
         My-Logger "Registering NSX Manager with vCenter SSO $VCSAHostname ..."
         $ssoConfig = Set-NsxManager -SsoServer $VCSAHostname -SsoUserName $ssoUsername -SsoPassword $VCSASSOPassword -AcceptAnyThumbprint
 
+        My-Logger "Assigning NSX license to vCenter ..."
+        $ServiceInstance = Get-View ServiceInstance
+        $LicenseManager = Get-View $ServiceInstance.Content.licenseManager
+        $LicenseAssignmentManager = Get-View $LicenseManager.licenseAssignmentManager
+        $LicenseAssignmentManager.UpdateAssignedLicense("nsx-netsec", $NSX_License, $NULL) > $Null
+
+        My-Logger "Check if NSX has been properly set ..."
+        $CheckLicense = $LicenseAssignmentManager.QueryAssignedLicenses("nsx-netsec")
+        if($CheckLicense.AssignedLicense.LicenseKey -ne $NSX_License) {
+            My-Logger "Setting the NSX License failed! Error: $CheckLicense ..."
+            Exit
+        } else {
+            My-Logger "Configured NSX License on vCenter ..."
+        }
         My-Logger "Disconnecting from NSX Manager ..."
         Disconnect-NsxServer
     }
@@ -1256,7 +1271,7 @@ if($setupNewVC -eq 'true') {
         $intRow++
     }
         
-    $release = Release-Ref($WorkSheet_Exclusions)
+    $release = Clear-Ref($WorkSheet_Exclusions)
     My-Logger "Added $ExcludedVMCount VM(s) to NSX Distributed Firewall exclusion list ..."
 
     My-Logger "Creating NSX Logical Switches ..."
@@ -1283,7 +1298,7 @@ if($setupNewVC -eq 'true') {
         }
         $intRow++
     }
-    $release = Release-Ref($WorkSheet_LS)
+    $release = Clear-Ref($WorkSheet_LS)
     My-Logger "Added $LogicalSwitchCount new Logical Switches to Transport Zone - $NSX_VXLAN_TZ_Name ..."
 
     My-Logger "Creating NSX Distributed Logical Routers (DLR) ..."
@@ -1380,7 +1395,7 @@ if($setupNewVC -eq 'true') {
         $dlr | Get-NsxLogicalRouterRouting | New-NsxLogicalRouterBgpNeighbour -IpAddress $DLR_BGP_IPAddr -RemoteAS $DLR_BGP_RemoteAS `
 -ForwardingAddress $DLR_BGP_Foward_Addr -ProtocolAddress $DLR_BGP_Protocol_Addr -KeepAliveTimer $DLR_BGP_KeepAlive -HoldDownTimer $DLR_BGP_HoldDown -confirm:$false
     }
-    $release = Release-Ref($WorkSheet_DLR)
+    $release = Clear-Ref($WorkSheet_DLR)
     My-Logger "Added $DLRCount Distributed Logical Routers ..."
     My-Logger "Distributed Logical Routers deployment completed ..."
 
@@ -1523,7 +1538,7 @@ if($setupNewVC -eq 'true') {
     $ESG | Get-NsxEdgeRouting | New-NsxEdgeBgpNeighbour -IpAddress $ESG_BGP_IPAddr -RemoteAS $ESG_BGP_RemoteAS -Weight 60 `
 -KeepAliveTimer $ESG_BGP_KeepAlive -HoldDownTimer $ESG_BGP_HoldDown -confirm:$false
 
-    $release = Release-Ref($WorkSheet_ESG)
+    $release = Clear-Ref($WorkSheet_ESG)
     My-Logger "Edge Services Gateway deployment completed ..."
 
     # Cleanup Excel object
