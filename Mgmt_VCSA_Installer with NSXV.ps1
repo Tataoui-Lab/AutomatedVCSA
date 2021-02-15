@@ -20,7 +20,7 @@
 # 5. ImportExcel7.1.0 (removed)
 #    Install-Module -Name ImportExcel -RequiredVersion 7.1.0
 #
-
+#
 Set-PowerCLIConfiguration -defaultviservermode Single -Scope Session -ParticipateInCEIP $false -Confirm:$false
 # Set-PowerCLIConfiguration -Scope User -ParticipateInCEIP $false -Confirm:$false | out-null
 Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -WebOperationTimeoutSeconds 600 -Confirm:$false | out-null
@@ -55,13 +55,13 @@ if ($DataSource -eq 'S') {
     #$NSXTControllerOVA = 
     #$NSXTEdgeOVA = 'D:\VMware\ova\VMware NSX-T Data Center 2.5.2.2\nsx-edge-2.5.2.2.0.17003662.ova'
 
-    $strO365Username = 'user@office365.com' # Office 365 username
-    $strO365Password = 'Pa55w0rd' # Office 365 Password
     $strSMTPServer = 'smtp.office365.com' # SMTP Server
     $intSMTPPort = 587 # SMTP Server Port
+    $strO365Username = 'user@office365.com' # Office 365 username
+    $strO365Password = 'Pa55w0rd' # Office 365 Password
     $strSendTo = 'admin@test.com' # Email Recipient
 
-    $VIServer = 'esx02'
+    $VIServer = 'esx02.tataoui.com'
     $VIServerIP ='192.168.10.21'
     $VIUsername = 'root'
     $VIPassword = 'VMware1!'
@@ -82,15 +82,15 @@ if ($DataSource -eq 'S') {
     }
 
     # VCSA Deployment Configuration
-    $VCSAIPAddress = '192.168.10.223'
     $VCSAHostname = 'VCSA100.tataoui.com' # Change to IP if you don't have valid DNS
     # $VCSAHostname = $VCSAIPAddress
+    $VCSAIPAddress = '192.168.10.223'
     $VCSADeploymentSize = 'tiny'
     $VCSADisplayName = 'VCSA100'
     $VCSAIPAddress = '192.168.10.32'
     $VCSAPrefix = '24'
     $VCSASSODomainName = 'vsphere.local'
-    $VCSASSOSiteName = "Site HQ"
+    $VCSASSOSiteName = 'Site HQ'
     $VCSASSOPassword = 'VMware1!'
     $VCSARootPassword = 'VMware1!'
     $VCSASSHEnable = 'true'
@@ -102,7 +102,7 @@ if ($DataSource -eq 'S') {
     $VMGateway = '192.168.10.2'
     $VMDNS = '192.168.30.2'
     $VMNTP = 'pool.ntp.org'
-    $VMPassword = "VMware1!" # Password to Add ESXi Host to vCenter Cluster
+    $VMPassword = 'VMware1!' # Password to Add ESXi Host to vCenter Cluster
     $VMDomain = 'tataoui.com'
     # VMSyslog = '192.168.1.200' # Not Used
     $VMDatastore = 'SSD_VM'
@@ -119,10 +119,10 @@ if ($DataSource -eq 'S') {
     $VLANTrunkPortgroup = 'Trunk Network'
 
     # VDS / VXLAN Configurations (Not used)
-    $PrivateVXLANVMNetwork = "dv-private-network" # Existing Portgroup
-    $VXLANDVPortgroup = "VXLAN"
-    $VXLANSubnet = "172.16.66."
-    $VXLANNetmask = "255.255.255.0"
+    $PrivateVXLANVMNetwork = 'dv-private-network' # Existing Portgroup
+    $VXLANDVPortgroup = 'VXLAN'
+    $VXLANSubnet = '172.16.66.'
+    $VXLANNetmask = '255.255.255.0'
 
     # Enable deployment options
     $preCheck = 'true' # Validate VCSA installer location
@@ -144,18 +144,18 @@ if ($DataSource -eq 'S') {
     $ISOPath = 'F:\ISO' # Path to ISO files to upload (note it will upload ALL isos found in this folder)
 
      # NSX Manager Configuration
-    $NSX_Mgr_Name = "nsx64-1"
-    $NSX_Mgr_Hostname = "nsx64-1.tataoui.com"
-    $NSX_Mgr_IPAddress = "172.30.0.250"
-    $NSX_Mgr_Netmask = "255.255.255.0"
-    $NSX_Mgr_Gateway = "172.30.0.1"
+    $NSX_Mgr_Name = 'nsx64-1'
+    $NSX_Mgr_Hostname = 'nsx64-1.tataoui.com'
+    $NSX_Mgr_IPAddress = '172.30.0.250'
+    $NSX_Mgr_Netmask = '255.255.255.0'
+    $NSX_Mgr_Gateway = '172.30.0.1'
     $NSX_MGR_DNSServer = $VMDNS
     $NSX_MGR_DNSDomain = $VMDomain
     $NSX_MGR_NTPServer = $VMNTP
-    $NSX_Mgr_UIPassword = "VMw@re123!"
-    $NSX_Mgr_CLIPassword = "VMw@re123!"
-    $NSX_Mgr_SSHEnable = "true"
-    $NSX_Mgr_CEIPEnable = "false"
+    $NSX_Mgr_UIPassword = 'VMware1!VMware1!'
+    $NSX_Mgr_CLIPassword = 'VMware1!VMware1!'
+    $NSX_Mgr_SSHEnable = 'true'
+    $NSX_Mgr_CEIPEnable = 'false'
     $NSX_Mgr_vCPU = '2' # Reconfigure NSX vCPU
     $NSX_Mgr_vMem = '8' # Reconfigure NSX vMEM (GB)
     $NSX_License  = '--'
@@ -177,10 +177,10 @@ if ($DataSource -eq 'S') {
 
     $WorkSheetname = "Email"
     $WorkSheet = $WorkBook.Sheets.Item($WorkSheetname)
-    $strO365Username = $WorkSheet.Cells.Item(2, 1).Value() # Office 365 username
-    $strO365Password = $WorkSheet.Cells.Item(2, 2).Value() # Office 365 Password ##########################
-    $strSMTPServer   = $WorkSheet.Cells.Item(2, 3).Value() # SMTP Server
-    $intSMTPPort     = $WorkSheet.Cells.Item(2, 4).Value() # SMTP Server Port
+    $strSMTPServer   = $WorkSheet.Cells.Item(2, 1).Value() # SMTP Server
+    $intSMTPPort     = $WorkSheet.Cells.Item(2, 2).Value() # SMTP Server Port
+    $strO365Username = $WorkSheet.Cells.Item(2, 3).Value() # Office 365 username
+    $strO365Password = $WorkSheet.Cells.Item(2, 4).Value() # Office 365 Password
     $strSendTo       = $WorkSheet.Cells.Item(2, 5).Value() # Email Recipient
     $release = Clear-Ref($WorkSheet)
 
@@ -210,12 +210,12 @@ if ($DataSource -eq 'S') {
     }
 
     # VCSA Deployment Configuration
-    $VCSAIPAddress      = $WorkSheet.Cells.Item(7, 1).Value()
-    $VCSAHostname       = $WorkSheet.Cells.Item(7, 2).Value() #Change to IP if you don't have valid DNS
+    $VCSAHostname       = $WorkSheet.Cells.Item(7, 1).Value() #Change to IP if you don't have valid DNS
     # $VCSAHostname = $VCSAIPAddress
+    $VCSAIPAddress      = $WorkSheet.Cells.Item(7, 2).Value()
     $VCSADeploymentSize = $WorkSheet.Cells.Item(7, 3).Value()
     $VCSADisplayName    = $WorkSheet.Cells.Item(7, 4).Value()
-    $VCSAPrefix         = $WorkSheet.Cells.Item(7, 5).Value()
+    $VCSAPrefix         = [string]$WorkSheet.Cells.Item(7, 5).Value()
     $VCSASSODomainName  = $WorkSheet.Cells.Item(7, 6).Value()
     $VCSASSOSiteName    = $WorkSheet.Cells.Item(7, 7).Value()
     $VCSASSOPassword    = $WorkSheet.Cells.Item(7, 8).Value()
@@ -629,7 +629,7 @@ if($DeployNSX -eq 'true') {
 
     if(-not (Get-Module -Name "PowerNSX")) {
         Write-Host -ForegroundColor Red "`nPowerNSX Module is not loaded, please install and load PowerNSX before running script ...`nexiting"
-        #exit
+        # exit
     }
 }
 
@@ -844,7 +844,7 @@ if($confirmDeployment -eq 'true') {
     }
     Clear-Host
     # Set temporary host record on deployment laptop/desktop to mitigate if ESX host not added to DNS
-    "$VIServerIP  $VIServer" | Add-Content -PassThru $hostfile
+    # "$VIServerIP  $VIServer" | Add-Content -PassThru $hostfile
 }
 
 My-Logger "Connecting to $VIServer ..."
@@ -853,7 +853,7 @@ $viConnection = Connect-VIServer $VIServer -User $VIUsername -Password $VIPasswo
 $ESXHost = Get-VMHost -Name $VIServer
 $ESXState = $ESXHost.ConnectionState
 if($ESXState -eq "Maintenance") {
-    My-Logger "Host '$VIServer' is in Maintenance Mode."
+    My-Logger "Host '$VIServer' is in Maintenance Mode ..."
     $maintenace = Read-Host -Prompt "Remove host '$VIServer' out of maintenace mode? (Y or N)"
     if($maintenace -eq "Y" -or $maintenace -eq "y") {
         Get-VMHost -Name $VIServer | Set-VMHost -State Connected
@@ -868,25 +868,20 @@ if($VirtualSwitchType -eq "VSS") {
     $network = Get-VDPortgroup -Server $viConnection -Name $VMNetwork
 }
 
-    Write-Host "Vritual Switch type set to -" $VirtualSwitchType
-    write-host "Deploying to the following portgroup -" $network
-    write-host "Datastore set to -" $VMDatastore
-    write-host "DeployDVS is set to"$DeployVDS
-
 if($deployVCSA -eq 'true') {
-    if($DeploymentTarget -eq "ESXI") {
+    if($DeploymentTarget -eq 'ESXI') {
         # Deploy using the VCSA CLI Installer
         $config = (Get-Content -Raw "$($VCSAInstallerPath)\vcsa-cli-installer\templates\install\embedded_vCSA_on_ESXi.json") | convertfrom-json
         $config.new_vcsa.esxi.hostname = $VIServer
         $config.new_vcsa.esxi.username = $VIUsername
         $config.new_vcsa.esxi.password = $VIPassword
         $config.new_vcsa.esxi.deployment_network = $VMNetwork
-        $config.new_vcsa.esxi.datastore = $datastore
+        $config.new_vcsa.esxi.datastore = $VMDatastore
         $config.new_vcsa.appliance.thin_disk_mode = $true
         $config.new_vcsa.appliance.deployment_option = $VCSADeploymentSize
         $config.new_vcsa.appliance.name = $VCSADisplayName
-        $config.new_vcsa.network.ip_family = "ipv4"
-        $config.new_vcsa.network.mode = "static"
+        $config.new_vcsa.network.ip_family = 'ipv4'
+        $config.new_vcsa.network.mode = 'static'
         $config.new_vcsa.network.ip = $VCSAIPAddress
         $config.new_vcsa.network.dns_servers[0] = $VMDNS
         $config.new_vcsa.network.prefix = $VCSAPrefix
@@ -921,13 +916,13 @@ if($deployVCSA -eq 'true') {
         $config.new_vcsa.vc.username = $VIUsername
         $config.new_vcsa.vc.password = $VIPassword
         $config.new_vcsa.vc.deployment_network = $VMNetwork
-        $config.new_vcsa.vc.datastore = $datastore
-        $config.new_vcsa.vc.datacenter = $datacenter.name
+        $config.new_vcsa.vc.datastore = $VMDatastore
+        $config.new_vcsa.vc.datacenter = $VMDatastore.name
         $config.new_vcsa.appliance.thin_disk_mode = $true
         $config.new_vcsa.appliance.deployment_option = $VCSADeploymentSize
         $config.new_vcsa.appliance.name = $VCSADisplayName
-        $config.new_vcsa.network.ip_family = "ipv4"
-        $config.new_vcsa.network.mode = "static"
+        $config.new_vcsa.network.ip_family = 'ipv4'
+        $config.new_vcsa.network.mode = 'static'
         $config.new_vcsa.network.ip = $VCSAIPAddress
         $config.new_vcsa.network.dns_servers[0] = $VMDNS
         $config.new_vcsa.network.prefix = $VCSAPrefix
@@ -961,11 +956,11 @@ My-Logger "Disconnecting from $VIServer ..."
 Disconnect-VIServer $viConnection -Confirm:$false
 
 # Remove earlier temporary host record on deployment laptop/desktop
-(Get-Content $hostfile) -notmatch $VIServer | Set-Content $hostfile
+# (Get-Content $hostfile) -notmatch $VIServer | Set-Content $hostfile
 
 if($setupNewVC -eq 'true') {
     My-Logger "Connecting to the new VCSA - $VCSADisplayName ..."
-    Set-PowerCLIConfiguration -Scope User -ParticipateInCEIP $false -Confirm:$false
+    # Set-PowerCLIConfiguration -Scope User -ParticipateInCEIP $false -Confirm:$false
     $vc = Connect-VIServer $VCSAIPAddress -User "administrator@$VCSASSODomainName" -Password $VCSASSOPassword -WarningAction SilentlyContinue
 
     My-Logger "Creating Datacenter - '$NewVCDatacenterName' ..."
@@ -1160,7 +1155,16 @@ if($setupNewVC -eq 'true') {
         Set-VM -Server $vc -VM $vm -NumCpu $NSX_Mgr_vCPU -MemoryGB $NSX_Mgr_vMem -Confirm:$false | Out-File -Append -LiteralPath $verboseLogFile
 
         My-Logger "Powering On NSX - $NSX_Mgr_Name ..."
-        $vm | Start-Vm -RunAsync | Out-Null
+        $oVMName = VMware.VimAutomation.Core\Get-VM -Name $vm
+        Start-VM -VM $vm -Confirm:$false
+        # $vm | Start-Vm -RunAsync | Out-Null
+        while (-not $oVMName.ExtensionData.Guest.GuestOperationsReady)
+        {
+            Start-Sleep 2
+            $oVMName.ExtensionData.UpdateViewData('Guest')
+        }
+        My-Logger "Wait for NSX Manager to finish boot up before continuing ..."
+        Start-Sleep 30
     }
 
     if($DeployNSX -eq 'true' -and $configureNSX -eq 'true' -and $setupVXLAN -eq 'true') {
@@ -1171,15 +1175,18 @@ if($setupNewVC -eq 'true') {
         } else {
             My-Logger "Successfully logged into NSX Manager - $NSX_Mgr_Hostname ..."
         }
-
+        break
         $ssoUsername = "administrator@$VCSASSODomainName"
         My-Logger "Registering NSX Manager '$NSX_Mgr_Hostname' with vCenter Server '$VCSAHostname' ..."
-        $vcConfig = Set-NsxManager -vCenterServer $VCSAHostname -vCenterUserName $ssoUsername -vCenterPassword $VCSASSOPassword
-
+        Connect-NSXServer -Server $NSX_Mgr_Hostname -Username admin -Password $NSX_Mgr_UI_Pass -DisableVIAutoConnect -WarningAction SilentlyContinue
+        $vcConfig = Set-NsxManager -vCenterServer $VCSAHostname -vCenterUserName $ssoUsername -vCenterPassword $VCSASSOPassword -AcceptAnyThumbprint
+        
         My-Logger "Registering NSX Manager with vCenter SSO $VCSAHostname ..."
+        #Connect-NSXServer -Server $NSX_Mgr_Hostname -Username admin -Password $NSX_Mgr_UI_Pass -DisableVIAutoConnect -WarningAction SilentlyContinue
         $ssoConfig = Set-NsxManager -SsoServer $VCSAHostname -SsoUserName $ssoUsername -SsoPassword $VCSASSOPassword -AcceptAnyThumbprint
 
         My-Logger "Assigning NSX license to vCenter ..."
+        Connect-NSXServer -Server $NSX_Mgr_Hostname -Username admin -Password $NSX_Mgr_UI_Pass -DisableVIAutoConnect -WarningAction SilentlyContinue
         $ServiceInstance = Get-View ServiceInstance
         $LicenseManager = Get-View $ServiceInstance.Content.licenseManager
         $LicenseAssignmentManager = Get-View $LicenseManager.licenseAssignmentManager
@@ -1207,19 +1214,20 @@ if($setupNewVC -eq 'true') {
     # $IP_Pool = Get-NsxIpPool -Name $NSX_Controllers_IP_Pool_Name
     # Remove-NsxIpPool -IPPool $IP_Pool -Confirm:$false
 
-    My-Logger "Create NSX Controllers .."
+    My-Logger "Create NSX Controllers ..."
+    # can take up to 8 minutes each
     $cluster = Get-Cluster -Name $NSX_Controllers_Cluster
     $datastore = Get-Datastore -Name $NSX_Controllers_Datastore
     $portgroup = Get-VirtualPortGroup -Name $NSX_Controllers_PortGroup
     $i = 1
     While ($i -le $NSX_Controllers_Amount) {
         My-Logger "Deloying NSX Controller $i ..."
-        $controller = New-NsxController -Confirm:$False -IpPool $IPPool -Cluster $cluster -Datastore $datastore -PortGroup $portgroup -Password $NSX_Controllers_Password -Wait
+        $controller = New-NsxController -Confirm:$False -IpPool $CTRLIPPool -Cluster $cluster -Datastore $datastore -PortGroup $portgroup -Password $NSX_Controllers_Password -Wait
         $i += 1
     }
     My-Logger "$NSX_Controllers_Amount NSX Controllers deployed ..."
 
-    My-Logger "Preparing ESX Hosts on Cluster - $NSX_VXLAN_Cluster (installing VIBs) ..."
+    My-Logger "Preparing ESX Hosts on Cluster - $NSX_VXLAN_Cluster (installing VIBs) ..." # flag with some license issue
     $cluster = Get-Cluster -Name $NSX_VXLAN_Cluster
     $HostPrep = Install-NsxCluster -Cluster $cluster -VxlanPrepTimeout 300
     My-Logger "VXLAN enabled on Cluster - $NSX_VXLAN_Cluster ..."
@@ -1242,10 +1250,10 @@ if($setupNewVC -eq 'true') {
         My-Logger "Create VXLAN (VTEP) IP Pool - $NSX_VXLAN_IP_Pool_Name ..."
     }
 
-    My-Logger "Configuring '$NSX_VXLAN_VTEP_Count' VXLAN VTEPs on cluster - $NSX_VXLAN_Cluster ..."
+    My-Logger "Configuring '$NSX_VXLAN_VTEP_Count' VXLAN VTEPs on cluster - $NSX_VXLAN_Cluster ..." # flag with some license issue
     $vds = Get-VDSwitch -Name $NSX_VXLAN_DSwitch
     New-NsxVdsContext -VirtualDistributedSwitch $vds -Teaming $NSX_VXLAN_Failover_Mode -Mtu $NSX_VXLAN_MTU_Size
-    New-NsxClusterVxlanConfig -Cluster $cluster -VirtualDistributedSwitch $vds -IpPool $IPPool -VlanId $NSX_VXLAN_VLANID -VtepCount $NSX_VXLAN_VTEP_Count
+    New-NsxClusterVxlanConfig -Cluster $cluster -VirtualDistributedSwitch $vds -IpPool $VTEPIPPool -VlanId $NSX_VXLAN_VLANID -VtepCount $NSX_VXLAN_VTEP_Count
 
     My-Logger "Adding Transport Zone - $NSX_VXLAN_TZ_Name ..." 
     New-NsxTransportZone -Cluster $cluster -Name $NSX_VXLAN_TZ_Name -ControlPlaneMode $NSX_VXLAN_TZ_Mode
@@ -1270,7 +1278,6 @@ if($setupNewVC -eq 'true') {
         }
         $intRow++
     }
-        
     $release = Clear-Ref($WorkSheet_Exclusions)
     My-Logger "Added $ExcludedVMCount VM(s) to NSX Distributed Firewall exclusion list ..."
 
@@ -1365,7 +1372,7 @@ if($setupNewVC -eq 'true') {
             $lifCount++
             $intRow++
         }
-        My-Logger "$lifCount LIF were added to $DLR_Name ..."
+        My-Logger "$lifCount internal LIF were added to $DLR_Name ..."
 
         My-Logger "Configure newly created Distributed Logical Routers '$DLR_Name' ..."
         $intRow = 6 # Move cursor to row 6
@@ -1587,8 +1594,8 @@ My-Logger " Duration: $duration minutes"
 
 # Forward Deployment summary and log to receipent...
 $verboseLogFilePath = Get-ChildItem Env:Userprofile
-$strVMGuestIP = (Get-VM $strVMName).Guest.IPAddress
-$strVMFreeSpace = [math]::Round((Get-VM $strVMName).Guest.Disks.FreeSpaceGB[0],2)
+#$strVMGuestIP = (Get-VM $strVMName).Guest.IPAddress
+#$strVMFreeSpace = [math]::Round((Get-VM $strVMName).Guest.Disks.FreeSpaceGB[0],2)
 $AttachmentsPath = $verboseLogFilePath.Value+'\'+$verboseLogFile
 $strEmailBody = @"
 <h1><span style="color: #0000ff;">VMware Manage VCSA Deployment Log attached</span></h1>
